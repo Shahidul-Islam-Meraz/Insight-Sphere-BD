@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,25 +24,30 @@
     <main>
         <section>
             <h2>Make a Payment</h2>
-            <p>Please fill out the form below and proceed with your payment.</p>
+            <p>Please complete the payment form below.</p>
             <form method="POST" action="/payment">
                 <label for="name">Full Name:</label>
-                <input type="text" id="name" name="name" required><br>
+                <input type="text" id="name" name="name" required>
 
                 <label for="email">Email Address:</label>
-                <input type="email" id="email" name="email" required><br>
+                <input type="email" id="email" name="email" required>
 
                 <label for="amount">Amount (BDT):</label>
-                <input type="number" id="amount" name="amount" required><br>
+                <input type="number" id="amount" name="amount" value="1000" readonly>
 
-                <label for="purpose">Payment For:</label>
-                <select id="purpose" name="purpose" required>
-                    <option value="training">Training Program</option>
-                    <option value="event">Event</option>
-                    <option value="consultancy">Consultancy</option>
-                </select><br>
+                <label for="payment_method">Payment Method:</label>
+                <select id="payment_method" name="payment_method" required>
+                    <option value="bKash">bKash</option>
+                    <option value="Nagad">Nagad</option>
+                    <option value="Rocket">Rocket</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                </select>
 
-                <button type="submit">Proceed to Payment</button>
+                <label for="transaction_id">Transaction ID:</label>
+                <input type="text" id="transaction_id" name="transaction_id" required 
+                       placeholder="Enter your payment transaction ID">
+
+                <button type="submit">Generate Receipt</button>
             </form>
         </section>
     </main>
