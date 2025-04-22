@@ -30,7 +30,7 @@ def register():
         # Save registration data to a CSV file
         with open('registrations.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([fullname, email, phone, event])
+            writer.writerow([fullname, email, phone, event, "", "Not Downloaded"]) # Added an empty column for unique ID and download status
 
         # Render register.html and pass a success message
         return render_template('register.html', message="✅ Registration successful!")
@@ -54,7 +54,7 @@ def payment():
         # Generate receipt number and current timestamp
         current_time = datetime.now()
         receipt_no = f"INS-{current_time.strftime('%Y%m%d%H%M%S')}"
-        
+
         # Save payment details to CSV
         with open('payments.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
@@ -73,8 +73,38 @@ def payment():
         return render_template('receipt.html', **receipt_data)
     return render_template('payment.html')
 
-@app.route('/certificate')
+@app.route('/certificate', methods=['GET', 'POST'])
 def certificate():
+    if request.method == 'POST':
+        unique_id = request.form['unique_id']
+
+        # Read all registrations
+        registrations = []
+        with open('registrations.csv', mode='r') as file:
+            reader = csv.reader(file)
+            registrations = list(reader)
+
+        # Find and update registration
+        for i, row in enumerate(registrations):
+            if row[0] == unique_id:  # Check unique_id
+                certificate_data = {
+                    'name': row[1],
+                    'event': row[3], #index adjusted for new column
+                    'date': datetime.now().strftime('%B %d, %Y'),
+                    'unique_id': unique_id
+                }
+
+                # Update download status
+                registrations[i][5] = "Downloaded"
+
+                # Write back all registrations
+                with open('registrations.csv', mode='w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(registrations)
+
+                return render_template('certificate.html', certificate_data=certificate_data)
+
+        return render_template('certificate.html', error="Invalid Unique ID. Please check and try again.")
     return render_template('certificate.html')
 
 @app.route('/contact')
