@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Contact Us - Insight Sphere</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Contact Us</h1>
+        <nav>
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('about') }}">About Us</a>
+            <a href="{{ url_for('services') }}">Services</a>
+            <a href="{{ url_for('register') }}">Registration</a>
+            <a href="{{ url_for('events') }}">Events</a>
+            <a href="{{ url_for('payment') }}">Payment</a>
+            <a href="{{ url_for('certificate') }}">Certificates</a>
+            <a href="{{ url_for('contact') }}">Contact</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Send Us a Message</h2>
+            <form method="POST" action="/contact">
+                <label for="name">Your Name:</label>
+                <input type="text" id="name" name="name" required><br>
+
+                <label for="email">Your Email:</label>
+                <input type="email" id="email" name="email" required><br>
+
+                <label for="subject">Subject:</label>
+                <input type="text" id="subject" name="subject" required><br>
+
+                <label for="message">Message:</label><br>
+                <textarea id="message" name="message" rows="5" required></textarea><br>
+
+                <button type="submit">Send</button>
+            </form>
+        </section>
+
+        <section>
+            <h3>Our Address</h3>
+            <p>Insight Sphere<br>
+            Dhaka, Bangladesh<br>
+            Phone: +880-123456789<br>
+            Email: info@insightspherebd.com</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Insight Sphere. All rights reserved.</p>
+    </footer>
+</body>
+</html>

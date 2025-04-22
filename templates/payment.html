@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment - Insight Sphere</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Payment Portal</h1>
+        <nav>
+            <a href="{{ url_for('home') }}">Home</a>
+            <a href="{{ url_for('about') }}">About Us</a>
+            <a href="{{ url_for('services') }}">Services</a>
+            <a href="{{ url_for('register') }}">Registration</a>
+            <a href="{{ url_for('events') }}">Events</a>
+            <a href="{{ url_for('payment') }}">Payment</a>
+            <a href="{{ url_for('certificate') }}">Certificates</a>
+            <a href="{{ url_for('contact') }}">Contact</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Make a Payment</h2>
+            <p>Please fill out the form below and proceed with your payment.</p>
+            <form method="POST" action="/payment">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" name="name" required><br>
+
+                <label for="email">Email Address:</label>
+                <input type="email" id="email" name="email" required><br>
+
+                <label for="amount">Amount (BDT):</label>
+                <input type="number" id="amount" name="amount" required><br>
+
+                <label for="purpose">Payment For:</label>
+                <select id="purpose" name="purpose" required>
+                    <option value="training">Training Program</option>
+                    <option value="event">Event</option>
+                    <option value="consultancy">Consultancy</option>
+                </select><br>
+
+                <button type="submit">Proceed to Payment</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Insight Sphere. All rights reserved.</p>
+    </footer>
+</body>
+</html>
