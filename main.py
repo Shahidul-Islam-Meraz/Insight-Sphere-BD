@@ -41,8 +41,32 @@ def register():
 def events():
     return render_template('events.html')
 
-@app.route('/payment')
+@app.route('/payment', methods=['GET', 'POST'])
 def payment():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        amount = request.form['amount']
+        payment_method = request.form['payment_method']
+        transaction_id = request.form['transaction_id']
+
+        # Save payment details to CSV
+        with open('payments.csv', mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([name, email, amount, payment_method, transaction_id])
+
+        # Generate receipt
+        from datetime import datetime
+        receipt_data = {
+            'receipt_no': f"INS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'name': name,
+            'email': email,
+            'amount': amount,
+            'payment_method': payment_method,
+            'transaction_id': transaction_id
+        }
+        return render_template('receipt.html', **receipt_data)
     return render_template('payment.html')
 
 @app.route('/certificate')

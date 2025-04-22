@@ -1,0 +1,28 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Receipt - Insight Sphere</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="receipt">
+        <h1>Payment Receipt</h1>
+        <div class="receipt-details">
+            <p><strong>Receipt No:</strong> {{ receipt_no }}</p>
+            <p><strong>Date:</strong> {{ date }}</p>
+            <p><strong>Name:</strong> {{ name }}</p>
+            <p><strong>Email:</strong> {{ email }}</p>
+            <p><strong>Amount Paid:</strong> Tk {{ amount }}</p>
+            <p><strong>Payment Method:</strong> {{ payment_method }}</p>
+            <p><strong>Transaction ID:</strong> {{ transaction_id }}</p>
+        </div>
+        <div class="receipt-footer">
+            <p>Thank you for your payment!</p>
+            <p>Insight Sphere BD</p>
+        </div>
+        <button onclick="window.print()" class="print-button">Print Receipt</button>
+    </div>
+</body>
+</html>
