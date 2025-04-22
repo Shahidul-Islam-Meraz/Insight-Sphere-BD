@@ -23,6 +23,11 @@
     <main>
         <section>
             <h2>Register for Training or Event</h2>
+            {% if message %}
+            <div class="message success-message">
+                {{ message }}
+            </div>
+            {% endif %}
             <form action="/register" method="post">
                 <label for="fullname">Full Name:</label><br>
                 <input type="text" id="fullname" name="fullname" required><br><br>
