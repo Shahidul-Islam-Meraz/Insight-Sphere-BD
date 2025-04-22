@@ -51,8 +51,9 @@ def payment():
         payment_method = request.form['payment_method']
         transaction_id = request.form['transaction_id']
 
-        # Generate receipt number
-        receipt_no = f"INS-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Generate receipt number and current timestamp
+        current_time = datetime.now()
+        receipt_no = f"INS-{current_time.strftime('%Y%m%d%H%M%S')}"
         
         # Save payment details to CSV
         with open('payments.csv', mode='a', newline='') as file:
@@ -60,10 +61,9 @@ def payment():
             writer.writerow([receipt_no, name, email, amount, payment_method, transaction_id])
 
         # Generate receipt
-        from datetime import datetime
         receipt_data = {
-            'receipt_no': f"INS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'receipt_no': receipt_no,
+            'date': current_time.strftime('%Y-%m-%d %H:%M:%S'),
             'name': name,
             'email': email,
             'amount': amount,
