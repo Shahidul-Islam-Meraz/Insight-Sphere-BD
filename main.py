@@ -21,35 +21,36 @@ def services():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        user_type = request.form.get('user_type')
-        name = request.form.get('name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        event = request.form.get('event')
-        hear_about = request.form.get('hear_about')
+        name = request.form['name']
+        email = request.form['email']
+        phone = request.form['phone']
+        user_type = request.form['user_type']
+        course = request.form['course']
+        heard_about = request.form['heard_about']
 
-        # Conditional fields
-        if user_type == 'student':
-            institution = request.form.get('institution')
-            department = request.form.get('student_department')
-            session = request.form.get('session')
-            designation = organization = experience = job_department = ""
-        else:
-            designation = request.form.get('designation')
-            organization = request.form.get('organization')
-            experience = request.form.get('experience')
-            job_department = request.form.get('job_department')
-            institution = department = session = ""
+        # Default values
+        institution = student_department = session = ''
+        designation = organization = experience = job_department = ''
+
+        if user_type == 'Student':
+            institution = request.form['institution']
+            student_department = request.form['student_department']
+            session = request.form['session']
+        elif user_type == 'Job Holder':
+            designation = request.form['designation']
+            organization = request.form['organization']
+            experience = request.form['experience']
+            job_department = request.form['job_department']
 
         unique_id = str(uuid.uuid4())[:8]
 
-        with open('registrations.csv', 'a', newline='') as file:
+        with open('registrations.csv', mode='a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([
-                unique_id, user_type, name, email, phone, event,
-                institution, department, session,
+                unique_id, name, email, phone, user_type,
+                institution, student_department, session,
                 designation, organization, experience, job_department,
-                hear_about, "Not Downloaded"
+                course, heard_about, "Not Downloaded"
             ])
 
         return render_template('registration_success.html', unique_id=unique_id)
@@ -86,6 +87,7 @@ def payment():
             'transaction_id': transaction_id
         }
         return render_template('receipt.html', **receipt_data)
+
     return render_template('payment.html')
 
 @app.route('/certificate', methods=['GET', 'POST'])
@@ -100,8 +102,8 @@ def certificate():
         for i, row in enumerate(registrations):
             if row[0] == unique_id:
                 certificate_data = {
-                    'name': row[2],  # Full Name
-                    'event': row[5],  # Course/Event
+                    'name': row[1],
+                    'event': row[12],
                     'date': datetime.now().strftime('%B %d, %Y'),
                     'unique_id': unique_id
                 }
