@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <title>Register - Insight Sphere</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        function toggleFields() {
+            var userType = document.getElementById("user_type").value;
+            document.getElementById("student_fields").style.display = (userType === "Student") ? "block" : "none";
+            document.getElementById("job_holder_fields").style.display = (userType === "Job Holder") ? "block" : "none";
+        }
+    </script>
 </head>
 <body>
     <header>
@@ -38,23 +45,48 @@
                 <label for="phone">Phone:</label><br>
                 <input type="text" id="phone" name="phone" required><br><br>
 
-                <label for="designation">Designation:</label><br>
-                <input type="text" id="designation" name="designation" required><br><br>
+                <label for="user_type">You are a:</label><br>
+                <select id="user_type" name="user_type" onchange="toggleFields()" required>
+                    <option value="">-- Select --</option>
+                    <option value="Student">Student</option>
+                    <option value="Job Holder">Job Holder</option>
+                </select><br><br>
 
-                <label for="education">Education:</label><br>
-                <input type="text" id="education" name="education" required><br><br>
+                <!-- Student Fields -->
+                <div id="student_fields" style="display: none;">
+                    <label for="institution">Institution Name:</label><br>
+                    <input type="text" id="institution" name="institution"><br><br>
 
-                <label for="factory">Factory Name:</label><br>
-                <input type="text" id="factory" name="factory" required><br><br>
+                    <label for="student_department">Department:</label><br>
+                    <input type="text" id="student_department" name="student_department"><br><br>
 
-                <label for="experience">Total Work Experience:</label><br>
-                <input type="text" id="experience" name="experience" required><br><br>
+                    <label for="session">Session:</label><br>
+                    <input type="text" id="session" name="session"><br><br>
+                </div>
+
+                <!-- Job Holder Fields -->
+                <div id="job_holder_fields" style="display: none;">
+                    <label for="designation">Designation:</label><br>
+                    <input type="text" id="designation" name="designation"><br><br>
+
+                    <label for="organization">Organization Name:</label><br>
+                    <input type="text" id="organization" name="organization"><br><br>
+
+                    <label for="experience">Total Work Experience (years):</label><br>
+                    <input type="text" id="experience" name="experience"><br><br>
+
+                    <label for="job_department">Department:</label><br>
+                    <input type="text" id="job_department" name="job_department"><br><br>
+                </div>
 
                 <label for="training">Previous Training:</label><br>
-                <input type="text" id="training" name="training" required><br><br>
+                <input type="text" id="training" name="training"><br><br>
 
                 <label for="course">Course/Event Attended:</label><br>
                 <input type="text" id="course" name="course" required><br><br>
+
+                <label for="referral">How did you hear about us?</label><br>
+                <input type="text" id="referral" name="referral" required><br><br>
 
                 <button type="submit">Submit Registration</button>
             </form>
