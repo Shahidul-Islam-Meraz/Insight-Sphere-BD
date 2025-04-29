@@ -1,132 +1,147 @@
 import csv
+import os
+import sqlite3
 import uuid
 from datetime import datetime
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.secret_key = 'supersecretkey'  # Should be more secure in production
 
-@app.route('/')
-def home():
-    return render_template('home.html')
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
-@app.route('/services')
-def services():
-    return render_template('services.html')
+# Database setup
+def init_db():
+    with sqlite3.connect('admins.db') as conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS admins (
+                id TEXT PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                address TEXT NOT NULL,
+                designation TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                cv_filename TEXT,
+                certificate_filename TEXT,
+                is_approved INTEGER DEFAULT 0,
+                is_super INTEGER DEFAULT 0
+            )
+        ''')
+        # Insert first admin if not already there
+        c.execute("SELECT * FROM admins WHERE is_super=1")
+        if not c.fetchone():
+            c.execute('''
+                INSERT INTO admins (id, full_name, phone, address, designation, password_hash, is_approved, is_super)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                str(uuid.uuid4()),
+                'First Admin',
+                '01000000000',
+                'Head Office',
+                'Director',
+                generate_password_hash('admin123'),
+                1,
+                1
+            ))
+        conn.commit()
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
+init_db()
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Admin Registration
+@app.route('/admin/register', methods=['GET', 'POST'])
+def admin_register():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
+        data = request.form
+        files = request.files
+
+        full_name = data['full_name']
+        phone = data['phone']
+        address = data['address']
+        designation = data['designation']
+        password = data['password']
+
+        # File uploads
+        cv = files['cv']
+        cert = files['certificate']
+
+        if not (cv and allowed_file(cv.filename)) or not (cert and allowed_file(cert.filename)):
+            flash('Please upload only PDF files for CV and Certificate.')
+            return redirect(request.url)
+
+        cv_filename = secure_filename(f"cv_{uuid.uuid4()}.pdf")
+        cert_filename = secure_filename(f"cert_{uuid.uuid4()}.pdf")
+        cv.save(os.path.join(app.config['UPLOAD_FOLDER'], cv_filename))
+        cert.save(os.path.join(app.config['UPLOAD_FOLDER'], cert_filename))
+
+        admin_id = str(uuid.uuid4())
+        password_hash = generate_password_hash(password)
+
+        with sqlite3.connect('admins.db') as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO admins (id, full_name, phone, address, designation, password_hash, cv_filename, certificate_filename) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                      (admin_id, full_name, phone, address, designation, password_hash, cv_filename, cert_filename))
+            conn.commit()
+
+        flash("Registration successful! Awaiting approval.")
+        return redirect(url_for('admin_login'))
+
+    return render_template('admin_register.html')
+
+# Admin Login
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
         phone = request.form['phone']
-        user_type = request.form['user_type']
-        course = request.form['course']
-        heard_about = request.form['heard_about']
+        password = request.form['password']
 
-        # Default values
-        institution = student_department = session = ''
-        designation = organization = experience = job_department = ''
+        with sqlite3.connect('admins.db') as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM admins WHERE phone=?", (phone,))
+            admin = c.fetchone()
 
-        if user_type == 'Student':
-            institution = request.form['institution']
-            student_department = request.form['student_department']
-            session = request.form['session']
-        elif user_type == 'Job Holder':
-            designation = request.form['designation']
-            organization = request.form['organization']
-            experience = request.form['experience']
-            job_department = request.form['job_department']
+        if admin and check_password_hash(admin[5], password):
+            if admin[8] == 1:
+                session['admin_id'] = admin[0]
+                session['is_super'] = bool(admin[9])
+                return redirect(url_for('admin_dashboard'))
+            else:
+                flash("Account not yet approved.")
+        else:
+            flash("Invalid credentials.")
 
-        unique_id = str(uuid.uuid4())[:8]
+    return render_template('admin_login.html')
 
-        with open('registrations.csv', mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([
-                unique_id, name, email, phone, user_type,
-                institution, student_department, session,
-                designation, organization, experience, job_department,
-                course, heard_about, "Not Downloaded"
-            ])
+# Admin Dashboard
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
 
-        return render_template('registration_success.html', unique_id=unique_id)
+    return render_template('admin_dashboard.html', is_super=session.get('is_super'))
 
-    return render_template('register.html')
+# Logout
+@app.route('/admin/logout')
+def admin_logout():
+    session.clear()
+    return redirect(url_for('admin_login'))
 
-@app.route('/events')
-def events():
-    return render_template('events.html')
-
-@app.route('/payment', methods=['GET', 'POST'])
-def payment():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        amount = request.form['amount']
-        payment_method = request.form['payment_method']
-        transaction_id = request.form['transaction_id']
-
-        current_time = datetime.now()
-        receipt_no = f"INS-{current_time.strftime('%Y%m%d%H%M%S')}"
-
-        with open('payments.csv', mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([receipt_no, name, email, amount, payment_method, transaction_id])
-
-        receipt_data = {
-            'receipt_no': receipt_no,
-            'date': current_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'name': name,
-            'email': email,
-            'amount': amount,
-            'payment_method': payment_method,
-            'transaction_id': transaction_id
-        }
-        return render_template('receipt.html', **receipt_data)
-
-    return render_template('payment.html')
-
-@app.route('/certificate', methods=['GET', 'POST'])
-def certificate():
-    if request.method == 'POST':
-        unique_id = request.form['unique_id']
-
-        with open('registrations.csv', mode='r') as file:
-            reader = csv.reader(file)
-            registrations = list(reader)
-
-        for i, row in enumerate(registrations):
-            if row[0] == unique_id:
-                certificate_data = {
-                    'name': row[1],
-                    'event': row[12],
-                    'date': datetime.now().strftime('%B %d, %Y'),
-                    'unique_id': unique_id
-                }
-
-                registrations[i][14] = "Downloaded"
-
-                with open('registrations.csv', mode='w', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerows(registrations)
-
-                return render_template('certificate.html', certificate_data=certificate_data, error=None)
-
-        return render_template('certificate.html', certificate_data=None, error="Invalid Unique ID. Please check and try again.")
-
-    return render_template('certificate.html', certificate_data=None, error=None)
-
-@app.route('/contact')
-def contact():
-    return render_template('contact.html')
-
-@app.route('/dashboard')
-def dashboard():
-    return render_template('dashboard.html')
+# Serve uploaded files
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
