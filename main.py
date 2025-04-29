@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -49,6 +49,19 @@ def init_db():
                 cost REAL,
                 payment_method TEXT,
                 is_active INTEGER DEFAULT 1
+            )
+        ''')
+        # Registration table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS registrations (
+                id TEXT PRIMARY KEY,
+                event_id TEXT,
+                name TEXT,
+                email TEXT,
+                phone TEXT,
+                registration_time TEXT,
+                is_paid INTEGER DEFAULT 0,
+                FOREIGN KEY (event_id) REFERENCES events(id)
             )
         ''')
         # Insert first admin if not already there
@@ -173,6 +186,15 @@ def create_event():
         return redirect(url_for('admin_dashboard'))
 
     return render_template('create_event.html')
+
+# API to fetch active events for registration dropdown
+@app.route('/api/active_events')
+def active_events():
+    with sqlite3.connect('admins.db') as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, title FROM events WHERE is_active=1")
+        events = c.fetchall()
+    return jsonify(events)
 
 # Logout
 @app.route('/admin/logout')
