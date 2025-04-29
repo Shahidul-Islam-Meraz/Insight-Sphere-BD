@@ -23,6 +23,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 def init_db():
     with sqlite3.connect('admins.db') as conn:
         c = conn.cursor()
+        # Admin table
         c.execute('''
             CREATE TABLE IF NOT EXISTS admins (
                 id TEXT PRIMARY KEY,
@@ -35,6 +36,19 @@ def init_db():
                 certificate_filename TEXT,
                 is_approved INTEGER DEFAULT 0,
                 is_super INTEGER DEFAULT 0
+            )
+        ''')
+        # Event table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS events (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                event_date TEXT,
+                max_participants INTEGER,
+                cost REAL,
+                payment_method TEXT,
+                is_active INTEGER DEFAULT 1
             )
         ''')
         # Insert first admin if not already there
@@ -130,42 +144,35 @@ def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('admin_login'))
 
-    with sqlite3.connect('admins.db') as conn:
-        c = conn.cursor()
-        c.execute("SELECT id, full_name, phone, address, designation, is_approved FROM admins")
-        admins = c.fetchall()
+    return render_template('admin_dashboard.html', is_super=session.get('is_super'))
 
-    return render_template('admin_dashboard.html', is_super=session.get('is_super'), admins=admins)
+# Create Event (Admin)
+@app.route('/admin/create_event', methods=['GET', 'POST'])
+def create_event():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
 
-# Approve Admin
-@app.route('/admin/approve/<admin_id>')
-def approve_admin(admin_id):
-    if not session.get('is_super'):
-        flash("Access denied.")
+    if request.method == 'POST':
+        data = request.form
+        event_id = str(uuid.uuid4())
+        title = data['title']
+        description = data['description']
+        event_date = data['event_date']
+        max_participants = int(data['max_participants'])
+        cost = float(data['cost']) if data['cost'] else 0.0
+        payment_method = data['payment_method']
+        is_active = 1 if data.get('is_active') == 'on' else 0
+
+        with sqlite3.connect('admins.db') as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO events (id, title, description, event_date, max_participants, cost, payment_method, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                      (event_id, title, description, event_date, max_participants, cost, payment_method, is_active))
+            conn.commit()
+
+        flash("Event created successfully!")
         return redirect(url_for('admin_dashboard'))
 
-    with sqlite3.connect('admins.db') as conn:
-        c = conn.cursor()
-        c.execute("UPDATE admins SET is_approved=1 WHERE id=?", (admin_id,))
-        conn.commit()
-
-    flash("Admin approved.")
-    return redirect(url_for('admin_dashboard'))
-
-# Reject Admin
-@app.route('/admin/reject/<admin_id>')
-def reject_admin(admin_id):
-    if not session.get('is_super'):
-        flash("Access denied.")
-        return redirect(url_for('admin_dashboard'))
-
-    with sqlite3.connect('admins.db') as conn:
-        c = conn.cursor()
-        c.execute("DELETE FROM admins WHERE id=? AND is_super=0", (admin_id,))
-        conn.commit()
-
-    flash("Admin rejected and removed.")
-    return redirect(url_for('admin_dashboard'))
+    return render_template('create_event.html')
 
 # Logout
 @app.route('/admin/logout')
