@@ -130,7 +130,42 @@ def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('admin_login'))
 
-    return render_template('admin_dashboard.html', is_super=session.get('is_super'))
+    with sqlite3.connect('admins.db') as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, full_name, phone, address, designation, is_approved FROM admins")
+        admins = c.fetchall()
+
+    return render_template('admin_dashboard.html', is_super=session.get('is_super'), admins=admins)
+
+# Approve Admin
+@app.route('/admin/approve/<admin_id>')
+def approve_admin(admin_id):
+    if not session.get('is_super'):
+        flash("Access denied.")
+        return redirect(url_for('admin_dashboard'))
+
+    with sqlite3.connect('admins.db') as conn:
+        c = conn.cursor()
+        c.execute("UPDATE admins SET is_approved=1 WHERE id=?", (admin_id,))
+        conn.commit()
+
+    flash("Admin approved.")
+    return redirect(url_for('admin_dashboard'))
+
+# Reject Admin
+@app.route('/admin/reject/<admin_id>')
+def reject_admin(admin_id):
+    if not session.get('is_super'):
+        flash("Access denied.")
+        return redirect(url_for('admin_dashboard'))
+
+    with sqlite3.connect('admins.db') as conn:
+        c = conn.cursor()
+        c.execute("DELETE FROM admins WHERE id=? AND is_super=0", (admin_id,))
+        conn.commit()
+
+    flash("Admin rejected and removed.")
+    return redirect(url_for('admin_dashboard'))
 
 # Logout
 @app.route('/admin/logout')
