@@ -9,25 +9,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Should be more secure in production
+app.secret_key = 'supersecretkey'  # Replace with a secure value in production
 
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB file limit
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Database setup
+# Initialize Database
 def init_db():
     with sqlite3.connect('admins.db') as conn:
         c = conn.cursor()
-        # Admin table
         c.execute('''
             CREATE TABLE IF NOT EXISTS admins (
                 id TEXT PRIMARY KEY,
                 full_name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
                 phone TEXT NOT NULL,
                 address TEXT NOT NULL,
                 designation TEXT NOT NULL,
@@ -38,7 +38,6 @@ def init_db():
                 is_super INTEGER DEFAULT 0
             )
         ''')
-        # Event table
         c.execute('''
             CREATE TABLE IF NOT EXISTS events (
                 id TEXT PRIMARY KEY,
@@ -51,7 +50,6 @@ def init_db():
                 is_active INTEGER DEFAULT 1
             )
         ''')
-        # Registration table
         c.execute('''
             CREATE TABLE IF NOT EXISTS registrations (
                 id TEXT PRIMARY KEY,
@@ -64,15 +62,16 @@ def init_db():
                 FOREIGN KEY (event_id) REFERENCES events(id)
             )
         ''')
-        # Insert first admin if not already there
+        # Create default super admin if not exists
         c.execute("SELECT * FROM admins WHERE is_super=1")
         if not c.fetchone():
             c.execute('''
-                INSERT INTO admins (id, full_name, phone, address, designation, password_hash, is_approved, is_super)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO admins (id, full_name, email, phone, address, designation, password_hash, is_approved, is_super)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 str(uuid.uuid4()),
                 'First Admin',
+                'admin@insightspherebd.com',
                 '01000000000',
                 'Head Office',
                 'Director',
@@ -95,31 +94,40 @@ def admin_register():
         files = request.files
 
         full_name = data['full_name']
+        email = data['email']
         phone = data['phone']
         address = data['address']
         designation = data['designation']
         password = data['password']
-
-        # File uploads
         cv = files['cv']
         cert = files['certificate']
+
+        # Basic validations
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.')
+            return redirect(request.url)
 
         if not (cv and allowed_file(cv.filename)) or not (cert and allowed_file(cert.filename)):
             flash('Please upload only PDF files for CV and Certificate.')
             return redirect(request.url)
 
-        cv_filename = secure_filename(f"cv_{uuid.uuid4()}.pdf")
-        cert_filename = secure_filename(f"cert_{uuid.uuid4()}.pdf")
-        cv.save(os.path.join(app.config['UPLOAD_FOLDER'], cv_filename))
-        cert.save(os.path.join(app.config['UPLOAD_FOLDER'], cert_filename))
-
-        admin_id = str(uuid.uuid4())
-        password_hash = generate_password_hash(password)
-
         with sqlite3.connect('admins.db') as conn:
             c = conn.cursor()
-            c.execute("INSERT INTO admins (id, full_name, phone, address, designation, password_hash, cv_filename, certificate_filename) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                      (admin_id, full_name, phone, address, designation, password_hash, cv_filename, cert_filename))
+            c.execute("SELECT * FROM admins WHERE email=?", (email,))
+            if c.fetchone():
+                flash('Email already registered.')
+                return redirect(request.url)
+
+            cv_filename = secure_filename(f"cv_{uuid.uuid4()}.pdf")
+            cert_filename = secure_filename(f"cert_{uuid.uuid4()}.pdf")
+            cv.save(os.path.join(app.config['UPLOAD_FOLDER'], cv_filename))
+            cert.save(os.path.join(app.config['UPLOAD_FOLDER'], cert_filename))
+
+            admin_id = str(uuid.uuid4())
+            password_hash = generate_password_hash(password)
+
+            c.execute("INSERT INTO admins (id, full_name, email, phone, address, designation, password_hash, cv_filename, certificate_filename) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      (admin_id, full_name, email, phone, address, designation, password_hash, cv_filename, cert_filename))
             conn.commit()
 
         flash("Registration successful! Awaiting approval.")
@@ -139,10 +147,10 @@ def admin_login():
             c.execute("SELECT * FROM admins WHERE phone=?", (phone,))
             admin = c.fetchone()
 
-        if admin and check_password_hash(admin[5], password):
-            if admin[8] == 1:
+        if admin and check_password_hash(admin[6], password):
+            if admin[9] == 1:
                 session['admin_id'] = admin[0]
-                session['is_super'] = bool(admin[9])
+                session['is_super'] = bool(admin[10])
                 return redirect(url_for('admin_dashboard'))
             else:
                 flash("Account not yet approved.")
@@ -156,10 +164,9 @@ def admin_login():
 def admin_dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('admin_login'))
-
     return render_template('admin_dashboard.html', is_super=session.get('is_super'))
 
-# Create Event (Admin)
+# Create Event (Admin only)
 @app.route('/admin/create_event', methods=['GET', 'POST'])
 def create_event():
     if 'admin_id' not in session:
@@ -187,7 +194,7 @@ def create_event():
 
     return render_template('create_event.html')
 
-# API to fetch active events for registration dropdown
+# Fetch Active Events (for registration dropdowns)
 @app.route('/api/active_events')
 def active_events():
     with sqlite3.connect('admins.db') as conn:
@@ -196,13 +203,13 @@ def active_events():
         events = c.fetchall()
     return jsonify(events)
 
-# Logout
+# Admin Logout
 @app.route('/admin/logout')
 def admin_logout():
     session.clear()
     return redirect(url_for('admin_login'))
 
-# Serve uploaded files
+# Serve uploaded files (admin CVs and certificates)
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
